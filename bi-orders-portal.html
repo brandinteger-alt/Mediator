@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand Integer · Orders Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@300;400&family=Syne:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink: #181614; --ink2: #2e2b28; --ink3: #5c5752;
+  --gold: #c8a84b; --gold2: #e2cc89; --gold3: rgba(200,168,75,0.12);
+  --cream: #f7f3ec; --card: #fdfaf5;
+  --border: rgba(200,168,75,0.2); --border2: rgba(200,168,75,0.08);
+  --green: #4a8b6f; --red: #b05a4a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Syne',sans-serif; background:var(--cream); color:var(--ink); min-height:100vh; }
+
+header {
+  position:sticky; top:0; z-index:100; background:var(--ink);
+  border-bottom:1px solid rgba(200,168,75,0.25);
+  padding:0 28px; display:flex; align-items:center; justify-content:space-between; height:54px;
+}
+.logo { font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:500; color:var(--gold); letter-spacing:0.04em; }
+.logo em { color:rgba(255,255,255,0.4); font-style:normal; font-weight:300; }
+.hright { display:flex; align-items:center; gap:14px; }
+.sp { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:600; letter-spacing:0.12em; color:#5a5550; text-transform:uppercase; }
+.sdot { width:7px; height:7px; border-radius:50%; background:#3a3730; transition:background 0.3s; }
+.sdot.loading { background:#e09030; animation:blink 0.8s infinite; }
+.sdot.ok { background:var(--green); }
+.sdot.err { background:var(--red); }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+#btn-reload {
+  font-family:'Syne',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+  background:transparent; border:1px solid rgba(200,168,75,0.3); color:var(--gold2);
+  padding:6px 14px; border-radius:6px; cursor:pointer; transition:all 0.2s; display:none;
+}
+#btn-reload:hover { background:var(--gold3); }
+
+#loading-screen {
+  position:fixed; inset:0; z-index:200; background:var(--ink);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+}
+.ll { font-family:'Cormorant Garamond',serif; font-size:30px; font-weight:300; color:var(--gold); letter-spacing:0.1em; }
+.lbw { width:220px; height:2px; background:rgba(200,168,75,0.15); border-radius:2px; overflow:hidden; }
+.lb { height:100%; width:0; background:linear-gradient(90deg,var(--gold),var(--gold2)); border-radius:2px; transition:width 0.5s ease; }
+.lt { font-size:10px; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; color:#4a4540; }
+
+main { max-width:1360px; margin:0 auto; padding:32px 20px 80px; }
+
+#error-state { display:none; text-align:center; padding:80px 20px; }
+.ei { font-size:42px; margin-bottom:14px; opacity:0.35; }
+.em { font-family:'Cormorant Garamond',serif; font-size:22px; color:var(--ink3); margin-bottom:8px; }
+.eh { font-size:12px; color:var(--ink3); line-height:1.9; }
+.eh code { background:var(--card); border:1px solid var(--border); padding:2px 8px; border-radius:4px; font-family:'DM Mono',monospace; font-size:11px; }
+
+.filter-bar { display:flex; align-items:center; gap:8px; margin-bottom:26px; flex-wrap:wrap; }
+.fl { font-size:9.5px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink3); margin-right:2px; }
+select.fsel {
+  font-family:'Syne',sans-serif; font-size:11.5px; font-weight:500;
+  background:var(--card); color:var(--ink); border:1px solid var(--border);
+  border-radius:7px; padding:7px 26px 7px 10px; outline:none; cursor:pointer; transition:border-color 0.2s;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c8a84b'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 8px center;
+}
+select.fsel:focus { border-color:var(--gold); }
+.pill-reset {
+  font-family:'Syne',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase;
+  background:transparent; border:1px solid var(--border); color:var(--ink3);
+  padding:6px 12px; border-radius:7px; cursor:pointer; transition:all 0.2s;
+}
+.pill-reset:hover { border-color:var(--gold); color:var(--gold); }
+
+.kpi-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:22px; }
+.kpi {
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:18px 16px 14px; position:relative; overflow:hidden;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.kpi:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,0.06); }
+.kpi::after { content:''; position:absolute; bottom:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--gold),transparent); }
+.kl { font-size:9px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink3); margin-bottom:10px; }
+.kv { font-family:'Cormorant Garamond',serif; font-size:32px; font-weight:500; line-height:1; color:var(--ink); }
+.kv.mono { font-family:'DM Mono',monospace; font-size:18px; font-weight:300; }
+.ks { font-size:10px; color:var(--ink3); margin-top:5px; }
+
+.sec { font-size:9px; font-weight:600; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin:26px 0 12px; display:flex; align-items:center; gap:10px; }
+.sec::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+
+.cg2 { display:grid; grid-template-columns:1.1fr 0.9fr; gap:14px; margin-bottom:14px; }
+.cg3 { display:grid; grid-template-columns:1fr 1fr 0.75fr; gap:14px; margin-bottom:14px; }
+.cc { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:22px 20px 16px; }
+.ct { font-family:'Cormorant Garamond',serif; font-size:17px; font-weight:500; color:var(--ink); }
+.cs { font-size:10px; color:var(--ink3); margin-top:2px; margin-bottom:16px; }
+canvas { max-height:230px; }
+
+.tw { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:14px; }
+.th { padding:18px 20px 0; margin-bottom:14px; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead th { font-size:9px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink3); padding:9px 16px; text-align:left; border-bottom:1px solid var(--border); background:rgba(200,168,75,0.04); }
+tbody tr { border-bottom:1px solid var(--border2); transition:background 0.12s; }
+tbody tr:hover { background:var(--gold3); }
+tbody tr:last-child { border:none; }
+td { padding:10px 16px; color:var(--ink2); }
+td.rank { font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:600; color:var(--gold); width:44px; }
+td strong { color:var(--ink); font-weight:600; }
+.badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:9.5px; font-weight:600; letter-spacing:0.05em; background:var(--gold3); color:var(--gold); border:1px solid rgba(200,168,75,0.22); }
+.badge.g { background:rgba(74,139,111,0.1); color:var(--green); border-color:rgba(74,139,111,0.2); }
+.bc { display:flex; align-items:center; gap:8px; }
+.bw { flex:1; height:3px; background:var(--border2); border-radius:3px; overflow:hidden; min-width:60px; }
+.bb { height:100%; background:linear-gradient(90deg,var(--gold),var(--gold2)); border-radius:3px; }
+
+@media(max-width:1050px) { .kpi-strip{grid-template-columns:repeat(3,1fr);} .cg2,.cg3{grid-template-columns:1fr;} }
+@media(max-width:650px)  { .kpi-strip{grid-template-columns:1fr 1fr;} header{padding:0 14px;} main{padding:20px 12px 60px;} }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="ll">Brand Integer</div>
+  <div class="lbw"><div class="lb" id="lbar"></div></div>
+  <div class="lt" id="lt">Connecting…</div>
+</div>
+
+<header>
+  <div class="logo">Brand<em>Integer</em> &nbsp;·&nbsp; Orders Intelligence</div>
+  <div class="hright">
+    <div class="sp"><div class="sdot" id="sdot"></div><span id="stxt">—</span></div>
+    <button id="btn-reload" onclick="init()">↺ Reload</button>
+  </div>
+</header>
+
+<main>
+  <div id="error-state">
+    <div class="ei">⚠</div>
+    <div class="em">Could not load sheet data</div>
+    <div class="eh">
+      Make sure all 5 sheets are set to <code>Anyone with the link → Viewer</code><br>
+      then tap <strong>Reload</strong> above.<br><br>
+      You can verify by opening one of the sheet links in a private browser window.
+    </div>
+  </div>
+
+  <div id="dash" style="display:none">
+    <div class="filter-bar">
+      <span class="fl">Filter</span>
+      <select class="fsel" id="fy" onchange="af()"><option value="">All Years</option></select>
+      <select class="fsel" id="fm" onchange="af()"><option value="">All Months</option></select>
+      <select class="fsel" id="fmed" onchange="af()"><option value="">All Mediators</option></select>
+      <select class="fsel" id="fbrand" onchange="af()"><option value="">All Brands</option></select>
+      <button class="pill-reset" onclick="rf()">Clear</button>
+    </div>
+
+    <div class="sec">Overview</div>
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kl">Total Orders</div><div class="kv" id="k0">—</div><div class="ks" id="k0s"></div></div>
+      <div class="kpi"><div class="kl">Order Amount</div><div class="kv mono" id="k1">—</div><div class="ks" id="k1s"></div></div>
+      <div class="kpi"><div class="kl">Avg Order Value</div><div class="kv mono" id="k2">—</div><div class="ks">per order</div></div>
+      <div class="kpi"><div class="kl">Active Mediators</div><div class="kv" id="k3">—</div><div class="ks" id="k3s"></div></div>
+      <div class="kpi"><div class="kl">Total Refund Amt</div><div class="kv mono" id="k4">—</div><div class="ks">across selection</div></div>
+    </div>
+
+    <div class="sec">Monthly Trends</div>
+    <div class="cg2">
+      <div class="cc"><div class="ct">Orders per Month</div><div class="cs">Volume of orders placed each month</div><canvas id="c0"></canvas></div>
+      <div class="cc"><div class="ct">Revenue per Month</div><div class="cs">Total order amount (₹) each month</div><canvas id="c1"></canvas></div>
+    </div>
+    <div class="cg3">
+      <div class="cc" style="grid-column:span 2"><div class="ct">Cumulative Trend</div><div class="cs">Running total of orders over time</div><canvas id="c2"></canvas></div>
+      <div class="cc"><div class="ct">Mediator Share</div><div class="cs">Orders by mediator (top 9)</div><canvas id="c3" style="max-height:190px"></canvas></div>
+    </div>
+
+    <div class="sec">Mediator Leaderboard</div>
+    <div class="tw">
+      <div class="th"><div class="ct">Ranked by Orders</div><div class="cs">Mediator-wise performance</div></div>
+      <table>
+        <thead><tr><th>#</th><th>Mediator</th><th>Orders</th><th>Volume</th><th>Total Amt (₹)</th><th>Refund Amt (₹)</th><th>AOV</th><th>Best Month</th></tr></thead>
+        <tbody id="tm"></tbody>
+      </table>
+    </div>
+
+    <div class="sec">Month-wise Breakdown</div>
+    <div class="tw">
+      <div class="th"><div class="ct">Monthly Summary</div><div class="cs">Orders and revenue by month</div></div>
+      <table>
+        <thead><tr><th>Month</th><th>Orders</th><th>Volume</th><th>Total Amt (₹)</th><th>AOV</th><th>Top Mediator</th><th>Mediators</th></tr></thead>
+        <tbody id="tmm"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+const SHEETS = [
+  '14fgv6AZJQ-ojuke1Fn9KojEO7p3Q1MIk3cnusOuUhcI',
+  '1faCJv1lPRT7sNE_isQoeuT8JpsLiwyxRTIMjbiYx85Q',
+  '1Ia9WB-T4zMGCyxwrjfGajdHeW9jQmHzTftdyHFS3QI8',
+  '1r35XOkduDE6wqXBvC93yeOwpnllMMmxAWKXDFKU3cS8',
+  '1F7Cl3M5eHAOj-CuBU_f_OvhcFVqAKgb82_g7nFsDlT8'
+];
+
+const MF=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let allData=[], filteredData=[], CH={};
+
+// ── FETCH via gviz (no CORS) ─────────────────────────────────────────────────
+async function fetchSheet(id) {
+  // gviz/tq returns JSONP-style; we use tqx=out:json
+  const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`;
+  const res = await fetch(url, { mode: 'cors' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  // Strip the JSONP wrapper: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+  const clean = text.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, '');
+  return JSON.parse(clean);
+}
+
+function parseGviz(json) {
+  if (!json.table) return [];
+  const cols = (json.table.cols || []).map(c => (c.label || c.id || '').toLowerCase().trim());
+  const rows  = json.table.rows || [];
+
+  function fi(terms) {
+    for (const t of terms) {
+      const i = cols.findIndex(c => c.includes(t));
+      if (i !== -1) return i;
+    }
+    return -1;
+  }
+
+  const iDate   = fi(['order date','date']);
+  const iMed    = fi(['mediator name','mediator']);
+  const iAmt    = fi(['total order amount','order amount','amount']);
+  const iRefund = fi(['refund amt','refund amount','refund']);
+  const iBrand  = fi(['brand name','brand']);
+
+  const out = [];
+  rows.forEach(row => {
+    const c = row.c || [];
+    const gv = i => (i >= 0 && c[i]) ? c[i].v : null;
+    const gf = i => (i >= 0 && c[i] && c[i].f) ? c[i].f : '';
+
+    // Parse date from gviz value
+    let date = null;
+    const dv = gv(iDate);
+    if (dv !== null) {
+      if (typeof dv === 'string') {
+        // "Date(2024,0,15)" format — month is 0-based
+        const dm = String(dv).match(/Date\((\d+),(\d+),(\d+)/);
+        if (dm) date = new Date(+dm[1], +dm[2], +dm[3]);
+        else date = pd(dv) || pd(gf(iDate));
+      } else if (typeof dv === 'number') {
+        date = pd(gf(iDate));
+      }
+    }
+    if (!date) date = pd(gf(iDate));
+
+    const med    = String(gv(iMed) || '').trim();
+    const amt    = pm(gv(iAmt) ?? gf(iAmt));
+    const refund = pm(gv(iRefund) ?? gf(iRefund));
+    const brand  = String(gv(iBrand) || '').trim();
+
+    if (date && !isNaN(date.getTime()) && date.getFullYear() > 2000 && med) {
+      out.push({ date, med, amt, refund, brand });
+    }
+  });
+  return out;
+}
+
+function pd(raw) {
+  if (!raw) return null;
+  raw = String(raw).trim();
+  if (!raw) return null;
+  const dm = raw.match(/Date\((\d+),(\d+),(\d+)/);
+  if (dm) return new Date(+dm[1], +dm[2], +dm[3]);
+  let d = new Date(raw);
+  if (!isNaN(d) && d.getFullYear() > 2000) return d;
+  const m = raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if (m) { let y=+m[3]; if(y<100)y+=2000; return new Date(y,+m[2]-1,+m[1]); }
+  return null;
+}
+function pm(v) { return parseFloat(String(v||0).replace(/[^0-9.]/g,''))||0; }
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  setLoad(true); setSt('loading','Loading…');
+  allData=[];
+  document.getElementById('error-state').style.display='none';
+  document.getElementById('dash').style.display='none';
+
+  let loaded=0, failed=0;
+  for (let i=0; i<SHEETS.length; i++) {
+    lp((i/SHEETS.length)*80, `Fetching sheet ${i+1} of ${SHEETS.length}…`);
+    try {
+      const json = await fetchSheet(SHEETS[i]);
+      const rows = parseGviz(json);
+      console.log(`Sheet ${i+1}: ${rows.length} rows`);
+      allData.push(...rows);
+      loaded++;
+    } catch(e) {
+      console.warn(`Sheet ${i+1} failed:`, e);
+      failed++;
+    }
+  }
+
+  lp(95,'Building dashboard…');
+  await sleep(200);
+
+  if (!allData.length) {
+    setLoad(false);
+    document.getElementById('error-state').style.display='block';
+    document.getElementById('btn-reload').style.display='inline-block';
+    setSt('err',`No data · ${failed} sheet${failed!==1?'s':''} failed`);
+    return;
+  }
+
+  populateFilters(); af();
+  lp(100,'Done'); await sleep(280);
+  setLoad(false);
+  document.getElementById('dash').style.display='block';
+  document.getElementById('btn-reload').style.display='inline-block';
+  setSt('ok',`${allData.length.toLocaleString('en-IN')} rows · ${loaded} sheets`);
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const years  = [...new Set(allData.map(r=>r.date.getFullYear()))].sort();
+  const months = [...new Set(allData.map(r=>r.date.getMonth()))].sort((a,b)=>a-b);
+  const meds   = [...new Set(allData.map(r=>r.med).filter(Boolean))].sort();
+  const brands = [...new Set(allData.map(r=>r.brand).filter(Boolean))].sort();
+  so('fy',   years.map(y=>({v:y,l:y})),      'All Years');
+  so('fm',   months.map(m=>({v:m,l:MF[m]})), 'All Months');
+  so('fmed', meds.map(m=>({v:m,l:m})),        'All Mediators');
+  so('fbrand',brands.map(b=>({v:b,l:b})),     'All Brands');
+}
+function so(id,items,ph){
+  document.getElementById(id).innerHTML=`<option value="">${ph}</option>`+items.map(i=>`<option value="${i.v}">${i.l}</option>`).join('');
+}
+function rf(){['fy','fm','fmed','fbrand'].forEach(id=>document.getElementById(id).value='');af();}
+function af(){
+  const year=document.getElementById('fy').value;
+  const month=document.getElementById('fm').value;
+  const med=document.getElementById('fmed').value;
+  const brand=document.getElementById('fbrand').value;
+  filteredData=allData.filter(r=>{
+    if(year && r.date.getFullYear()!=year) return false;
+    if(month!=='' && r.date.getMonth()!=month) return false;
+    if(med && r.med!==med) return false;
+    if(brand && r.brand!==brand) return false;
+    return true;
+  });
+  render();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(){
+  const D=filteredData;
+  const tot=D.length;
+  const totAmt=D.reduce((s,r)=>s+r.amt,0);
+  const totRef=D.reduce((s,r)=>s+r.refund,0);
+  const aov=tot?totAmt/tot:0;
+  const meds=new Set(D.map(r=>r.med));
+
+  st('k0',N(tot));         st('k0s',`across ${meds.size} mediators`);
+  st('k1',M(totAmt));      st('k1s',`avg ${M(aov)} / order`);
+  st('k2',M(aov));
+  st('k3',meds.size);      st('k3s','active in selection');
+  st('k4',M(totRef));
+
+  // Monthly map
+  const mm={};
+  D.forEach(r=>{
+    const k=`${r.date.getFullYear()}-${String(r.date.getMonth()).padStart(2,'0')}`;
+    if(!mm[k]) mm[k]={orders:0,amt:0,meds:{},y:r.date.getFullYear(),m:r.date.getMonth()};
+    mm[k].orders++; mm[k].amt+=r.amt;
+    mm[k].meds[r.med]=(mm[k].meds[r.med]||0)+1;
+  });
+  const mks=Object.keys(mm).sort();
+  const mls=mks.map(k=>`${MS[+k.split('-')[1]]} ${k.split('-')[0]}`);
+
+  // Mediator map
+  const medmap={};
+  D.forEach(r=>{
+    if(!medmap[r.med]) medmap[r.med]={orders:0,amt:0,refund:0,months:{}};
+    medmap[r.med].orders++; medmap[r.med].amt+=r.amt; medmap[r.med].refund+=r.refund;
+    const mk=`${r.date.getFullYear()}-${r.date.getMonth()}`;
+    medmap[r.med].months[mk]=(medmap[r.med].months[mk]||0)+1;
+  });
+  const ms=Object.entries(medmap).sort((a,b)=>b[1].orders-a[1].orders);
+  const maxO=ms[0]?.[1].orders||1;
+  const pal=['#c8a84b','#4a8b6f','#4a6a8b','#8b4a6a','#6a4a8b','#8b6a4a','#4a8b8b','#8b8b4a','#6a8b4a'];
+
+  mkBar('c0',mls,mks.map(k=>mm[k].orders),'Orders','#c8a84b');
+  mkBar('c1',mls,mks.map(k=>mm[k].amt),'Amount','#4a8b6f');
+  let cum=0; mkLine('c2',mls,mks.map(k=>{cum+=mm[k].orders;return cum;}));
+  mkDnut('c3',ms.slice(0,9).map(([k])=>k),ms.slice(0,9).map(([,v])=>v.orders),pal);
+
+  // Mediator table
+  document.getElementById('tm').innerHTML=ms.map(([name,d],i)=>{
+    const bm=Object.entries(d.months).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    const [by,bmo]=bm.split('-');
+    const best=bmo!==undefined?`${MS[+bmo]} ${by}`:'—';
+    const pct=Math.round(d.orders/maxO*100);
+    return `<tr>
+      <td class="rank">${i+1}</td>
+      <td><strong>${name}</strong></td>
+      <td>${N(d.orders)}</td>
+      <td><div class="bc"><div class="bw"><div class="bb" style="width:${pct}%"></div></div><span style="font-size:9px;color:var(--ink3);min-width:28px">${pct}%</span></div></td>
+      <td>${M(d.amt)}</td>
+      <td>${M(d.refund)}</td>
+      <td>${M(d.orders?d.amt/d.orders:0)}</td>
+      <td><span class="badge">${best}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Month table
+  document.getElementById('tmm').innerHTML=mks.map(k=>{
+    const d=mm[k]; const[y,mo]=k.split('-');
+    const top=Object.entries(d.meds).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+    const pct=tot?Math.min(Math.round(d.orders/tot*500),100):0;
+    return `<tr>
+      <td><strong>${MF[+mo]} ${y}</strong></td>
+      <td>${N(d.orders)}</td>
+      <td><div class="bc"><div class="bw"><div class="bb" style="width:${pct}%"></div></div></div></td>
+      <td>${M(d.amt)}</td>
+      <td>${M(d.orders?d.amt/d.orders:0)}</td>
+      <td><span class="badge g">${top}</span></td>
+      <td>${Object.keys(d.meds).length}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CHART HELPERS ──────────────────────────────────────────────────────────────
+const cO={responsive:true,plugins:{legend:{display:false}},scales:{
+  x:{grid:{display:false},ticks:{font:{family:'Syne',size:9},color:'#5c5752'}},
+  y:{grid:{color:'rgba(200,168,75,0.07)'},ticks:{font:{family:'DM Mono',size:9},color:'#5c5752'}}
+}};
+function kc(id){if(CH[id]){CH[id].destroy();delete CH[id];}}
+function mkBar(id,labels,data,lbl,color){
+  kc(id);
+  CH[id]=new Chart(document.getElementById(id).getContext('2d'),{
+    type:'bar',data:{labels,datasets:[{label:lbl,data,backgroundColor:color+'bb',borderColor:color,borderWidth:1.5,borderRadius:4,borderSkipped:false}]},options:cO
+  });
+}
+function mkLine(id,labels,data){
+  kc(id);
+  CH[id]=new Chart(document.getElementById(id).getContext('2d'),{
+    type:'line',data:{labels,datasets:[{label:'Cumulative',data,borderColor:'#c8a84b',backgroundColor:'rgba(200,168,75,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#c8a84b',pointRadius:3,pointHoverRadius:5}]},options:cO
+  });
+}
+function mkDnut(id,labels,data,pal){
+  kc(id);
+  CH[id]=new Chart(document.getElementById(id).getContext('2d'),{
+    type:'doughnut',data:{labels,datasets:[{data,backgroundColor:pal,borderWidth:2,borderColor:'#fdfaf5'}]},
+    options:{responsive:true,cutout:'58%',plugins:{legend:{position:'bottom',labels:{font:{family:'Syne',size:9},color:'#2e2b28',padding:6,boxWidth:9,boxHeight:9}}}}
+  });
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function M(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
+function N(n){return n.toLocaleString('en-IN');}
+function st(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function setLoad(on){document.getElementById('loading-screen').style.display=on?'flex':'none';}
+function lp(pct,msg){document.getElementById('lbar').style.width=pct+'%';document.getElementById('lt').textContent=msg;}
+function setSt(type,msg){document.getElementById('sdot').className='sdot '+type;document.getElementById('stxt').textContent=msg;}
+
+init();
+</script>
+</body>
+</html>
