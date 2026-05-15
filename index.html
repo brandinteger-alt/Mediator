@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand Integer · Orders Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Mono:wght@300;400&family=Syne:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink:#181614; --ink2:#2e2b28; --ink3:#5c5752;
+  --gold:#c8a84b; --gold2:#e2cc89; --gold3:rgba(200,168,75,0.12);
+  --cream:#f7f3ec; --card:#fdfaf5;
+  --border:rgba(200,168,75,0.2); --border2:rgba(200,168,75,0.08);
+  --green:#4a8b6f; --red:#b05a4a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Syne',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:var(--ink);border-bottom:1px solid rgba(200,168,75,0.25);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:54px;}
+.logo{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--gold);letter-spacing:0.04em;}
+.logo em{color:rgba(255,255,255,0.4);font-style:normal;font-weight:300;}
+.hright{display:flex;align-items:center;gap:12px;}
+.sp{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:0.12em;color:#5a5550;text-transform:uppercase;}
+.sdot{width:7px;height:7px;border-radius:50%;background:#3a3730;transition:background 0.3s;}
+.sdot.loading{background:#e09030;animation:blink 0.8s infinite;}
+.sdot.ok{background:var(--green);}
+.sdot.err{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+#btn-reload{font-family:'Syne',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;background:transparent;border:1px solid rgba(200,168,75,0.3);color:var(--gold2);padding:6px 12px;border-radius:6px;cursor:pointer;transition:all 0.2s;display:none;}
+#btn-reload:hover{background:var(--gold3);}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;z-index:200;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+.ll{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;color:var(--gold);letter-spacing:0.1em;}
+.lbw{width:220px;height:2px;background:rgba(200,168,75,0.15);border-radius:2px;overflow:hidden;}
+.lb{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:2px;transition:width 0.5s ease;}
+.lt{font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:#4a4540;}
+
+/* TABS */
+.tabs-nav{background:var(--ink);border-bottom:1px solid rgba(200,168,75,0.15);display:flex;padding:0 24px;}
+.tab-btn{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#5a5550;background:transparent;border:none;border-bottom:2px solid transparent;padding:14px 20px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.tab-btn:hover{color:var(--gold2);}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+main{max-width:1360px;margin:0 auto;padding:28px 20px 80px;}
+
+/* ERROR */
+#error-state{display:none;text-align:center;padding:80px 20px;}
+.ei{font-size:42px;margin-bottom:14px;opacity:0.35;}
+.em{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--ink3);margin-bottom:8px;}
+.eh{font-size:12px;color:var(--ink3);line-height:1.9;}
+.eh code{background:var(--card);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;}
+
+/* SELECTOR ROW */
+.sel-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.sel-label{font-size:9.5px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink3);padding-top:11px;}
+select.big-sel{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:10px 32px 10px 14px;outline:none;cursor:pointer;transition:border-color 0.2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c8a84b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+select.big-sel:focus{border-color:var(--gold);}
+
+/* MULTI-SELECT MEDIATOR */
+.med-multisel-wrap{position:relative;}
+.med-trigger{
+  font-family:'Syne',sans-serif;font-size:13px;font-weight:600;
+  background:var(--card);color:var(--ink);border:1px solid var(--border);
+  border-radius:8px;padding:10px 36px 10px 14px;
+  cursor:pointer;transition:border-color 0.2s;min-width:240px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  user-select:none;
+}
+.med-trigger:hover,.med-trigger.open{border-color:var(--gold);}
+.med-trigger-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.med-arrow{color:var(--gold);font-size:10px;flex-shrink:0;transition:transform 0.2s;}
+.med-trigger.open .med-arrow{transform:rotate(180deg);}
+
+.med-dropdown{
+  position:absolute;top:calc(100% + 6px);left:0;z-index:50;
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.12);
+  min-width:100%;max-width:340px;
+  max-height:320px;overflow-y:auto;
+  display:none;
+}
+.med-dropdown.open{display:block;}
+.med-search{padding:10px 12px;border-bottom:1px solid var(--border2);}
+.med-search input{
+  width:100%;font-family:'Syne',sans-serif;font-size:12px;
+  background:var(--cream);border:1px solid var(--border);
+  border-radius:6px;padding:6px 10px;outline:none;color:var(--ink);
+}
+.med-search input:focus{border-color:var(--gold);}
+.med-all-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  cursor:pointer;font-size:11.5px;font-weight:700;
+  letter-spacing:0.06em;color:var(--gold);
+  transition:background 0.12s;
+}
+.med-all-row:hover{background:var(--gold3);}
+.med-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;cursor:pointer;font-size:12px;
+  transition:background 0.12s;border-bottom:1px solid var(--border2);
+}
+.med-item:last-child{border:none;}
+.med-item:hover{background:var(--gold3);}
+.med-item.checked{background:rgba(200,168,75,0.06);}
+.med-cb{
+  width:15px;height:15px;border-radius:3px;
+  border:1.5px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--cream);transition:all 0.15s;
+}
+.med-item.checked .med-cb,.med-all-row.checked .med-cb{
+  background:var(--gold);border-color:var(--gold);
+}
+.med-cb-tick{color:#fff;font-size:9px;display:none;}
+.med-item.checked .med-cb-tick,.med-all-row.checked .med-cb-tick{display:block;}
+.med-name{flex:1;}
+
+/* STAT STRIP */
+.stat-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px 12px;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);}
+.skl{font-size:9px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;}
+.skv{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:500;line-height:1;color:var(--ink);}
+.skv.mono{font-family:'DM Mono',monospace;font-size:17px;font-weight:300;}
+
+/* TABLE */
+.tw{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;}
+.th{padding:16px 20px 0;margin-bottom:12px;}
+.ct{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;color:var(--ink);}
+.cs{font-size:10px;color:var(--ink3);margin-top:2px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead th{font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);padding:9px 16px;text-align:left;border-bottom:1px solid var(--border);background:rgba(200,168,75,0.04);}
+thead th.right{text-align:right;}
+tbody tr{border-bottom:1px solid var(--border2);transition:background 0.12s;}
+tbody tr:hover{background:var(--gold3);}
+tbody tr:last-child{border:none;}
+td{padding:11px 16px;color:var(--ink2);}
+td.rank{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:var(--gold);width:44px;}
+td.right{text-align:right;}
+td strong{color:var(--ink);font-weight:600;}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:9.5px;font-weight:600;background:var(--gold3);color:var(--gold);border:1px solid rgba(200,168,75,0.22);}
+.badge.g{background:rgba(74,139,111,0.1);color:var(--green);border-color:rgba(74,139,111,0.2);}
+.bc{display:flex;align-items:center;gap:8px;}
+.bw{flex:1;height:3px;background:var(--border2);border-radius:3px;overflow:hidden;min-width:50px;}
+.bb{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:3px;}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(--ink3);font-size:13px;}
+.empty-icon{font-size:32px;margin-bottom:10px;opacity:0.3;}
+
+/* SUMMARY KPIs */
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 16px 14px;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.06);}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);}
+.kl{font-size:9px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;}
+.kv{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;line-height:1;color:var(--ink);}
+.kv.mono{font-family:'DM Mono',monospace;font-size:17px;font-weight:300;}
+.ks{font-size:10px;color:var(--ink3);margin-top:5px;}
+.sec{font-size:9px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin:22px 0 12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+.cg2{display:grid;grid-template-columns:1.1fr 0.9fr;gap:14px;margin-bottom:14px;}
+.cg3{display:grid;grid-template-columns:1fr 1fr 0.75fr;gap:14px;margin-bottom:14px;}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 18px 14px;}
+canvas{max-height:220px;}
+
+/* SELECTED TAGS */
+.sel-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.sel-tag{display:inline-flex;align-items:center;gap:5px;background:var(--gold3);border:1px solid rgba(200,168,75,0.3);color:var(--ink2);border-radius:20px;padding:3px 10px 3px 10px;font-size:11px;font-weight:500;}
+.sel-tag-x{cursor:pointer;color:var(--gold);font-size:13px;line-height:1;}
+.sel-tag-x:hover{color:var(--red);}
+
+@media(max-width:1050px){.kpi-strip{grid-template-columns:repeat(3,1fr);}.cg2,.cg3{grid-template-columns:1fr;}.stat-strip{grid-template-columns:1fr 1fr;}}
+@media(max-width:650px){.kpi-strip{grid-template-columns:1fr 1fr;}.stat-strip{grid-template-columns:1fr;}.tab-btn{padding:12px 10px;font-size:10px;}header{padding:0 12px;}main{padding:16px 10px 60px;}}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="ll">Brand Integer</div>
+  <div class="lbw"><div class="lb" id="lbar"></div></div>
+  <div class="lt" id="lt">Connecting…</div>
+</div>
+
+<header>
+  <div class="logo">Brand<em>Integer</em> &nbsp;·&nbsp; Orders</div>
+  <div class="hright">
+    <div class="sp"><div class="sdot" id="sdot"></div><span id="stxt">—</span></div>
+    <button id="btn-reload" onclick="init()">↺ Reload</button>
+  </div>
+</header>
+
+<div class="tabs-nav" id="tabs-nav" style="display:none">
+  <button class="tab-btn active" onclick="switchTab('month',this)">📅 Month</button>
+  <button class="tab-btn" onclick="switchTab('mediator',this)">👤 Mediator</button>
+  <button class="tab-btn" onclick="switchTab('brand',this)">🏷 Brand</button>
+  <button class="tab-btn" onclick="switchTab('summary',this)">📊 Summary</button>
+</div>
+
+<main>
+  <div id="error-state">
+    <div class="ei">⚠</div>
+    <div class="em">Could not load sheet data</div>
+    <div class="eh">Make sure all 5 sheets are set to <code>Anyone with the link → Viewer</code><br>then tap <strong>Reload</strong> above.</div>
+  </div>
+
+  <!-- ── TAB 1: MONTH ── -->
+  <div class="tab-panel active" id="tab-month">
+    <div class="sel-row">
+      <span class="sel-label">Select Month</span>
+      <select class="big-sel" id="month-sel" onchange="renderMonth()">
+        <option value="">— Pick a month —</option>
+      </select>
+    </div>
+    <div id="month-stats" style="display:none">
+      <div class="stat-strip">
+        <div class="stat-card"><div class="skl">Total Orders</div><div class="skv" id="ms-orders">—</div></div>
+        <div class="stat-card"><div class="skl">Total Amount</div><div class="skv mono" id="ms-amt">—</div></div>
+        <div class="stat-card"><div class="skl">Avg Order Value</div><div class="skv mono" id="ms-aov">—</div></div>
+      </div>
+      <div class="tw">
+        <div class="th"><div class="ct">Mediator Breakdown</div><div class="cs">Sorted by number of orders · <span id="month-title"></span></div></div>
+        <table>
+          <thead><tr><th>#</th><th>Mediator Name</th><th class="right">Orders</th><th class="right">Order Amount (₹)</th><th class="right">Avg Order Value</th></tr></thead>
+          <tbody id="month-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty" id="month-empty"><div class="empty-icon">📅</div>Select a month above to see mediator breakdown</div>
+  </div>
+
+  <!-- ── TAB 2: MEDIATOR ── -->
+  <div class="tab-panel" id="tab-mediator">
+    <div class="sel-row">
+      <span class="sel-label">Select Mediators</span>
+      <div>
+        <div class="med-multisel-wrap" id="med-multisel-wrap">
+          <div class="med-trigger" id="med-trigger" onclick="toggleMedDropdown()">
+            <span class="med-trigger-text" id="med-trigger-text">— Pick mediators —</span>
+            <span class="med-arrow">▼</span>
+          </div>
+          <div class="med-dropdown" id="med-dropdown">
+            <div class="med-search"><input type="text" placeholder="Search mediators…" oninput="filterMedList(this.value)" id="med-search-input"></div>
+            <div class="med-all-row" id="med-all-row" onclick="toggleAllMeds()">
+              <div class="med-cb"><span class="med-cb-tick">✓</span></div>
+              <span class="med-name">Select All</span>
+            </div>
+            <div id="med-list"></div>
+          </div>
+        </div>
+        <div class="sel-tags" id="med-tags"></div>
+      </div>
+    </div>
+
+    <div id="med-stats" style="display:none">
+      <div class="stat-strip">
+        <div class="stat-card"><div class="skl">Total Orders</div><div class="skv" id="med-orders">—</div></div>
+        <div class="stat-card"><div class="skl">Total Amount</div><div class="skv mono" id="med-amt">—</div></div>
+        <div class="stat-card"><div class="skl">Avg Order Value</div><div class="skv mono" id="med-aov">—</div></div>
+      </div>
+
+      <!-- Per-mediator comparison (shown when multiple selected) -->
+      <div class="tw" id="med-compare-wrap" style="display:none">
+        <div class="th"><div class="ct">Mediator Comparison</div><div class="cs">Side-by-side for selected mediators</div></div>
+        <table>
+          <thead><tr><th>#</th><th>Mediator</th><th class="right">Orders</th><th>Volume</th><th class="right">Total Amt (₹)</th><th class="right">AOV</th></tr></thead>
+          <tbody id="med-compare-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Month-wise table -->
+      <div class="tw">
+        <div class="th"><div class="ct">Month-wise Orders</div><div class="cs">For <span id="med-title">selected mediators</span> · sorted by month</div></div>
+        <table>
+          <thead><tr><th>Month</th><th class="right">Orders</th><th class="right">Order Amount (₹)</th><th class="right">Avg Order Value</th></tr></thead>
+          <tbody id="med-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty" id="med-empty"><div class="empty-icon">👤</div>Select one or more mediators above to see details</div>
+  </div>
+
+  <!-- ── TAB 3: BRAND ── -->
+  <div class="tab-panel" id="tab-brand">
+    <div class="sel-row">
+      <span class="sel-label">Brand</span>
+      <select class="big-sel" id="brand-sel" onchange="onBrandChange()">
+        <option value="">— Pick a brand —</option>
+      </select>
+      <span class="sel-label">Month</span>
+      <select class="big-sel" id="brand-month-sel" onchange="onBrandMonthChange()">
+        <option value="">All Months</option>
+      </select>
+      <span class="sel-label">Dates</span>
+      <div class="med-multisel-wrap" id="brand-date-wrap">
+        <div class="med-trigger" id="brand-date-trigger" onclick="toggleBrandDateDD()">
+          <span class="med-trigger-text" id="brand-date-trigger-text">All Dates</span>
+          <span class="med-arrow">▼</span>
+        </div>
+        <div class="med-dropdown" id="brand-date-dd">
+          <div class="med-search"><input type="text" placeholder="Search dates…" oninput="filterBrandDates(this.value)" id="brand-date-search"></div>
+          <div class="med-all-row" id="brand-date-all-row" onclick="toggleAllBrandDates()">
+            <div class="med-cb"><span class="med-cb-tick">✓</span></div>
+            <span class="med-name">All Dates</span>
+          </div>
+          <div id="brand-date-list"></div>
+        </div>
+      </div>
+    </div>
+    <div class="sel-tags" id="brand-date-tags" style="margin-bottom:16px"></div>
+
+    <div id="brand-stats" style="display:none">
+      <div class="stat-strip">
+        <div class="stat-card"><div class="skl">Total Orders</div><div class="skv" id="br-orders">—</div></div>
+        <div class="stat-card"><div class="skl">Total Amount</div><div class="skv mono" id="br-amt">—</div></div>
+        <div class="stat-card"><div class="skl">Avg Order Value</div><div class="skv mono" id="br-aov">—</div></div>
+      </div>
+      <div class="tw">
+        <div class="th">
+          <div class="ct">Mediator-wise Breakdown</div>
+          <div class="cs">For <span id="br-title">—</span> · sorted by orders</div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>Mediator Name</th><th class="right">Orders</th><th>Volume</th><th class="right">Order Amount (₹)</th><th class="right">AOV</th></tr></thead>
+          <tbody id="brand-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty" id="brand-empty"><div class="empty-icon">🏷</div>Select a brand above to see mediator breakdown</div>
+  </div>
+
+  <!-- ── TAB 4: SUMMARY ── -->
+  <div class="tab-panel" id="tab-summary">
+    <div class="sec">Overall KPIs</div>
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kl">Total Orders</div><div class="kv" id="k0">—</div><div class="ks" id="k0s"></div></div>
+      <div class="kpi"><div class="kl">Order Amount</div><div class="kv mono" id="k1">—</div><div class="ks" id="k1s"></div></div>
+      <div class="kpi"><div class="kl">Avg Order Value</div><div class="kv mono" id="k2">—</div><div class="ks">per order</div></div>
+      <div class="kpi"><div class="kl">Active Mediators</div><div class="kv" id="k3">—</div><div class="ks" id="k3s"></div></div>
+      <div class="kpi"><div class="kl">Total Refund Amt</div><div class="kv mono" id="k4">—</div><div class="ks">across all data</div></div>
+    </div>
+    <div class="sec">Monthly Trends</div>
+    <div class="cg2">
+      <div class="cc"><div class="ct" style="margin-bottom:4px">Orders per Month</div><div class="cs" style="margin-bottom:14px">Volume of orders placed each month</div><canvas id="c0"></canvas></div>
+      <div class="cc"><div class="ct" style="margin-bottom:4px">Revenue per Month</div><div class="cs" style="margin-bottom:14px">Total order amount (₹) each month</div><canvas id="c1"></canvas></div>
+    </div>
+    <div class="cg3">
+      <div class="cc" style="grid-column:span 2"><div class="ct" style="margin-bottom:4px">Cumulative Trend</div><div class="cs" style="margin-bottom:14px">Running total of orders over time</div><canvas id="c2"></canvas></div>
+      <div class="cc"><div class="ct" style="margin-bottom:4px">Mediator Share</div><div class="cs" style="margin-bottom:14px">Orders by mediator</div><canvas id="c3" style="max-height:180px"></canvas></div>
+    </div>
+    <div class="sec">Mediator Leaderboard</div>
+    <div class="tw">
+      <div class="th"><div class="ct">All Mediators</div><div class="cs">Sorted by total orders</div></div>
+      <table>
+        <thead><tr><th>#</th><th>Mediator</th><th class="right">Orders</th><th>Volume</th><th class="right">Total Amt (₹)</th><th class="right">Refund (₹)</th><th class="right">AOV</th><th>Best Month</th></tr></thead>
+        <tbody id="sum-med-tbody"></tbody>
+      </table>
+    </div>
+    <div class="sec">Month-wise Breakdown</div>
+    <div class="tw">
+      <div class="th"><div class="ct">All Months</div><div class="cs">Orders and revenue by month</div></div>
+      <table>
+        <thead><tr><th>Month</th><th class="right">Orders</th><th>Volume</th><th class="right">Total Amt (₹)</th><th class="right">AOV</th><th>Top Mediator</th><th class="right">Mediators</th></tr></thead>
+        <tbody id="sum-month-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SHEETS=[
+  '14fgv6AZJQ-ojuke1Fn9KojEO7p3Q1MIk3cnusOuUhcI',
+  '1faCJv1lPRT7sNE_isQoeuT8JpsLiwyxRTIMjbiYx85Q',
+  '1Ia9WB-T4zMGCyxwrjfGajdHeW9jQmHzTftdyHFS3QI8',
+  '1r35XOkduDE6wqXBvC93yeOwpnllMMmxAWKXDFKU3cS8',
+  '1F7Cl3M5eHAOj-CuBU_f_OvhcFVqAKgb82_g7nFsDlT8'
+];
+const MF=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let allData=[], CH={};
+let allMeds=[], selectedMeds=new Set();
+let allBrandDates=[], selectedBrandDates=new Set();
+
+// ── FETCH ─────────────────────────────────────────────────────────────────────
+async function fetchSheet(id){
+  const url=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`;
+  const res=await fetch(url,{mode:'cors'});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const text=await res.text();
+  return JSON.parse(text.replace(/^[^(]+\(/,'').replace(/\);?\s*$/,''));
+}
+
+function parseGviz(json){
+  if(!json.table) return [];
+  const cols=(json.table.cols||[]).map(c=>(c.label||c.id||'').toLowerCase().trim());
+  const rows=json.table.rows||[];
+  function fi(terms){for(const t of terms){const i=cols.findIndex(c=>c.includes(t));if(i!==-1)return i;}return -1;}
+  const iDate=fi(['order date','date']),iMed=fi(['mediator name','mediator']);
+  const iAmt=fi(['total order amount','order amount','amount']);
+  const iRefund=fi(['refund amt','refund amount','refund']),iBrand=fi(['brand name','brand']);
+  return (rows||[]).reduce((out,row)=>{
+    const c=row.c||[];
+    const gv=i=>(i>=0&&c[i])?c[i].v:null, gf=i=>(i>=0&&c[i]&&c[i].f)?c[i].f:'';
+    let date=null;
+    const dv=gv(iDate);
+    if(dv!=null){
+      if(typeof dv==='string'){const dm=String(dv).match(/Date\((\d+),(\d+),(\d+)/);date=dm?new Date(+dm[1],+dm[2],+dm[3]):pd(dv)||pd(gf(iDate));}
+      else if(typeof dv==='number') date=pd(gf(iDate));
+    }
+    if(!date) date=pd(gf(iDate));
+    const med=String(gv(iMed)||'').trim();
+    const amt=pm(gv(iAmt)??gf(iAmt)),refund=pm(gv(iRefund)??gf(iRefund));
+    const brand=String(gv(iBrand)||'').trim();
+    if(date&&!isNaN(date.getTime())&&date.getFullYear()>2000&&med) out.push({date,med,amt,refund,brand});
+    return out;
+  },[]);
+}
+
+function pd(raw){
+  if(!raw) return null; raw=String(raw).trim();
+  const dm=raw.match(/Date\((\d+),(\d+),(\d+)/); if(dm) return new Date(+dm[1],+dm[2],+dm[3]);
+  let d=new Date(raw); if(!isNaN(d)&&d.getFullYear()>2000) return d;
+  const m=raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if(m){let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1]);}
+  return null;
+}
+function pm(v){return parseFloat(String(v||0).replace(/[^0-9.]/g,''))||0;}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init(){
+  setLoad(true);setSt('loading','Loading…');
+  allData=[];selectedMeds=new Set();selectedBrandDates=new Set();
+  document.getElementById('error-state').style.display='none';
+  document.getElementById('tabs-nav').style.display='none';
+  let loaded=0,failed=0;
+  for(let i=0;i<SHEETS.length;i++){
+    lp((i/SHEETS.length)*80,`Fetching sheet ${i+1} of ${SHEETS.length}…`);
+    try{allData.push(...parseGviz(await fetchSheet(SHEETS[i])));loaded++;}
+    catch(e){console.warn(`Sheet ${i+1} failed:`,e);failed++;}
+  }
+  lp(95,'Building dashboard…'); await sleep(200);
+  if(!allData.length){
+    setLoad(false);document.getElementById('error-state').style.display='block';
+    document.getElementById('btn-reload').style.display='inline-block';
+    setSt('err',`No data · ${failed} sheet${failed!==1?'s':''} failed`); return;
+  }
+  populateSelectors(); renderSummary();
+  document.getElementById('tab-month').classList.add('active');
+  document.getElementById('tabs-nav').style.display='flex';
+  lp(100,'Done'); await sleep(280); setLoad(false);
+  document.getElementById('btn-reload').style.display='inline-block';
+  setSt('ok',`${allData.length.toLocaleString('en-IN')} rows · ${loaded} sheets`);
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  closeMedDropdown();
+  closeBrandDateDD();
+}
+
+// ── POPULATE ──────────────────────────────────────────────────────────────────
+function populateSelectors(){
+  // Month dropdown (Tab 1)
+  const monthKeys=[...new Set(allData.map(r=>`${r.date.getFullYear()}-${String(r.date.getMonth()).padStart(2,'0')}`))].sort();
+  document.getElementById('month-sel').innerHTML='<option value="">— Pick a month —</option>'+
+    monthKeys.map(k=>{const[y,m]=k.split('-');return `<option value="${k}">${MF[+m]} ${y}</option>`;}).join('');
+
+  // Mediator multi-select (Tab 2)
+  allMeds=[...new Set(allData.map(r=>r.med).filter(Boolean))].sort();
+  buildMedList(allMeds);
+
+  // Brand dropdown (Tab 3)
+  const brands=[...new Set(allData.map(r=>r.brand).filter(Boolean))].sort();
+  document.getElementById('brand-sel').innerHTML='<option value="">— Pick a brand —</option>'+
+    brands.map(b=>`<option value="${b}">${b}</option>`).join('');
+
+  // Brand month dropdown
+  document.getElementById('brand-month-sel').innerHTML='<option value="">All Months</option>'+
+    monthKeys.map(k=>{const[y,m]=k.split('-');return `<option value="${k}">${MF[+m]} ${y}</option>`;}).join('');
+}
+
+// ── MULTI-SELECT DROPDOWN ─────────────────────────────────────────────────────
+function buildMedList(list){
+  document.getElementById('med-list').innerHTML=list.map(m=>`
+    <div class="med-item${selectedMeds.has(m)?' checked':''}" onclick="toggleMed('${m.replace(/'/g,"\\'")}')">
+      <div class="med-cb"><span class="med-cb-tick">✓</span></div>
+      <span class="med-name">${m}</span>
+    </div>`).join('');
+  updateAllRowState();
+}
+
+function filterMedList(q){
+  const filtered=allMeds.filter(m=>m.toLowerCase().includes(q.toLowerCase()));
+  buildMedList(filtered);
+}
+
+function toggleMedDropdown(){
+  const dd=document.getElementById('med-dropdown');
+  const tr=document.getElementById('med-trigger');
+  const isOpen=dd.classList.contains('open');
+  if(isOpen){closeMedDropdown();}
+  else{dd.classList.add('open');tr.classList.add('open');setTimeout(()=>document.getElementById('med-search-input').focus(),50);}
+}
+function closeMedDropdown(){
+  document.getElementById('med-dropdown').classList.remove('open');
+  document.getElementById('med-trigger').classList.remove('open');
+}
+
+function toggleMed(name){
+  if(selectedMeds.has(name)) selectedMeds.delete(name);
+  else selectedMeds.add(name);
+  refreshMedUI();
+}
+
+function toggleAllMeds(){
+  if(selectedMeds.size===allMeds.length){selectedMeds.clear();}
+  else{allMeds.forEach(m=>selectedMeds.add(m));}
+  refreshMedUI();
+}
+
+function removeMed(name){selectedMeds.delete(name);refreshMedUI();}
+
+function refreshMedUI(){
+  // Rebuild list items checked state
+  document.querySelectorAll('#med-list .med-item').forEach(el=>{
+    const name=el.querySelector('.med-name').textContent;
+    el.classList.toggle('checked',selectedMeds.has(name));
+  });
+  updateAllRowState();
+  updateTriggerText();
+  updateTags();
+  renderMediator();
+}
+
+function updateAllRowState(){
+  const row=document.getElementById('med-all-row');
+  row.classList.toggle('checked',selectedMeds.size===allMeds.length&&allMeds.length>0);
+}
+
+function updateTriggerText(){
+  const txt=document.getElementById('med-trigger-text');
+  if(selectedMeds.size===0) txt.textContent='— Pick mediators —';
+  else if(selectedMeds.size===allMeds.length) txt.textContent=`All Mediators (${allMeds.length})`;
+  else if(selectedMeds.size===1) txt.textContent=[...selectedMeds][0];
+  else txt.textContent=`${selectedMeds.size} mediators selected`;
+}
+
+function updateTags(){
+  const container=document.getElementById('med-tags');
+  if(selectedMeds.size===0||selectedMeds.size===allMeds.length){container.innerHTML='';return;}
+  container.innerHTML=[...selectedMeds].map(m=>`
+    <span class="sel-tag">${m}<span class="sel-tag-x" onclick="removeMed('${m.replace(/'/g,"\\'")}')">×</span></span>`).join('');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click',e=>{
+  if(!document.getElementById('med-multisel-wrap').contains(e.target)) closeMedDropdown();
+});
+
+// ── TAB 1: MONTH ─────────────────────────────────────────────────────────────
+function renderMonth(){
+  const key=document.getElementById('month-sel').value;
+  if(!key){document.getElementById('month-stats').style.display='none';document.getElementById('month-empty').style.display='block';return;}
+  const[y,mo]=key.split('-');
+  const rows=allData.filter(r=>r.date.getFullYear()==+y&&r.date.getMonth()==+mo);
+  const agg={};
+  rows.forEach(r=>{if(!agg[r.med])agg[r.med]={orders:0,amt:0};agg[r.med].orders++;agg[r.med].amt+=r.amt;});
+  const sorted=Object.entries(agg).sort((a,b)=>b[1].orders-a[1].orders);
+  const totO=rows.length,totA=rows.reduce((s,r)=>s+r.amt,0);
+  document.getElementById('ms-orders').textContent=N(totO);
+  document.getElementById('ms-amt').textContent=M(totA);
+  document.getElementById('ms-aov').textContent=M(totO?totA/totO:0);
+  document.getElementById('month-title').textContent=`${MF[+mo]} ${y}`;
+  document.getElementById('month-tbody').innerHTML=sorted.map(([name,d],i)=>`<tr>
+    <td class="rank">${i+1}</td><td><strong>${name}</strong></td>
+    <td class="right">${N(d.orders)}</td><td class="right">${M(d.amt)}</td>
+    <td class="right">${M(d.orders?d.amt/d.orders:0)}</td></tr>`).join('');
+  document.getElementById('month-empty').style.display='none';
+  document.getElementById('month-stats').style.display='block';
+}
+
+// ── TAB 2: MEDIATOR ───────────────────────────────────────────────────────────
+function renderMediator(){
+  const empty=document.getElementById('med-empty');
+  const stats=document.getElementById('med-stats');
+  if(selectedMeds.size===0){stats.style.display='none';empty.style.display='block';return;}
+
+  const mlist=[...selectedMeds];
+  const rows=allData.filter(r=>selectedMeds.has(r.med));
+  const totO=rows.length,totA=rows.reduce((s,r)=>s+r.amt,0);
+
+  document.getElementById('med-orders').textContent=N(totO);
+  document.getElementById('med-amt').textContent=M(totA);
+  document.getElementById('med-aov').textContent=M(totO?totA/totO:0);
+  document.getElementById('med-title').textContent=
+    mlist.length===allMeds.length?'All Mediators':
+    mlist.length===1?mlist[0]:
+    `${mlist.length} mediators`;
+
+  // Comparison table (only when multiple selected)
+  const compareWrap=document.getElementById('med-compare-wrap');
+  if(mlist.length>1){
+    const perMed={};
+    rows.forEach(r=>{if(!perMed[r.med])perMed[r.med]={orders:0,amt:0};perMed[r.med].orders++;perMed[r.med].amt+=r.amt;});
+    const cSorted=Object.entries(perMed).sort((a,b)=>b[1].orders-a[1].orders);
+    const maxO=cSorted[0]?.[1].orders||1;
+    document.getElementById('med-compare-tbody').innerHTML=cSorted.map(([name,d],i)=>{
+      const pct=Math.round(d.orders/maxO*100);
+      return `<tr><td class="rank">${i+1}</td><td><strong>${name}</strong></td>
+        <td class="right">${N(d.orders)}</td>
+        <td><div class="bc"><div class="bw"><div class="bb" style="width:${pct}%"></div></div><span style="font-size:9px;color:var(--ink3);min-width:26px">${pct}%</span></div></td>
+        <td class="right">${M(d.amt)}</td>
+        <td class="right">${M(d.orders?d.amt/d.orders:0)}</td></tr>`;
+    }).join('');
+    compareWrap.style.display='block';
+  } else {
+    compareWrap.style.display='none';
+  }
+
+  // Month-wise combined
+  const agg={};
+  rows.forEach(r=>{
+    const k=`${r.date.getFullYear()}-${String(r.date.getMonth()).padStart(2,'0')}`;
+    if(!agg[k])agg[k]={orders:0,amt:0};
+    agg[k].orders++;agg[k].amt+=r.amt;
+  });
+  const sorted=Object.entries(agg).sort((a,b)=>a[0].localeCompare(b[0]));
+  document.getElementById('med-tbody').innerHTML=sorted.map(([k,d])=>{
+    const[y,mo]=k.split('-');
+    return `<tr><td><strong>${MF[+mo]} ${y}</strong></td>
+      <td class="right">${N(d.orders)}</td>
+      <td class="right">${M(d.amt)}</td>
+      <td class="right">${M(d.orders?d.amt/d.orders:0)}</td></tr>`;
+  }).join('');
+
+  empty.style.display='none';
+  stats.style.display='block';
+}
+
+// ── TAB 3: BRAND ─────────────────────────────────────────────────────────────
+function onBrandChange(){
+  selectedBrandDates=new Set();
+  rebuildBrandDates();
+  renderBrand();
+}
+
+function onBrandMonthChange(){
+  selectedBrandDates=new Set();
+  rebuildBrandDates();
+  renderBrand();
+}
+
+function rebuildBrandDates(){
+  const brand=document.getElementById('brand-sel').value;
+  const monthKey=document.getElementById('brand-month-sel').value;
+  let rows=allData.filter(r=>r.brand===brand);
+  if(monthKey){
+    const[y,mo]=monthKey.split('-');
+    rows=rows.filter(r=>r.date.getFullYear()==+y&&r.date.getMonth()==+mo);
+  }
+  allBrandDates=[...new Set(rows.map(r=>{
+    const d=r.date;
+    return `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }))].sort();
+  buildBrandDateList(allBrandDates);
+  updateBrandDateTrigger();
+  updateBrandDateTags();
+}
+
+function buildBrandDateList(list){
+  document.getElementById('brand-date-list').innerHTML=list.map(d=>{
+    const[y,mo,day]=d.split('-');
+    const label=`${day} ${MS[+mo]} ${y}`;
+    const safe=d.replace(/-/g,'_');
+    return `<div class="med-item${selectedBrandDates.has(d)?' checked':''}" onclick="toggleBrandDate('${d}')">
+      <div class="med-cb"><span class="med-cb-tick">✓</span></div>
+      <span class="med-name">${label}</span>
+    </div>`;
+  }).join('');
+  updateBrandDateAllRow();
+}
+
+function filterBrandDates(q){
+  const filtered=allBrandDates.filter(d=>{
+    const[y,mo,day]=d.split('-');
+    return (`${day} ${MS[+mo]} ${y}`).toLowerCase().includes(q.toLowerCase());
+  });
+  buildBrandDateList(filtered);
+}
+
+function toggleBrandDateDD(){
+  const dd=document.getElementById('brand-date-dd');
+  const tr=document.getElementById('brand-date-trigger');
+  if(dd.classList.contains('open')){closeBrandDateDD();}
+  else{dd.classList.add('open');tr.classList.add('open');setTimeout(()=>document.getElementById('brand-date-search').focus(),50);}
+}
+function closeBrandDateDD(){
+  document.getElementById('brand-date-dd').classList.remove('open');
+  document.getElementById('brand-date-trigger').classList.remove('open');
+}
+
+function toggleBrandDate(d){
+  if(selectedBrandDates.has(d)) selectedBrandDates.delete(d);
+  else selectedBrandDates.add(d);
+  refreshBrandDateUI();
+}
+function toggleAllBrandDates(){
+  if(selectedBrandDates.size===allBrandDates.length) selectedBrandDates.clear();
+  else allBrandDates.forEach(d=>selectedBrandDates.add(d));
+  refreshBrandDateUI();
+}
+function removeBrandDate(d){selectedBrandDates.delete(d);refreshBrandDateUI();}
+
+function refreshBrandDateUI(){
+  document.querySelectorAll('#brand-date-list .med-item').forEach(el=>{
+    // match by label
+    const lbl=el.querySelector('.med-name').textContent;
+    const match=allBrandDates.find(d=>{const[y,mo,day]=d.split('-');return `${day} ${MS[+mo]} ${y}`===lbl;});
+    if(match) el.classList.toggle('checked',selectedBrandDates.has(match));
+  });
+  updateBrandDateAllRow();
+  updateBrandDateTrigger();
+  updateBrandDateTags();
+  renderBrand();
+}
+function updateBrandDateAllRow(){
+  document.getElementById('brand-date-all-row').classList.toggle('checked',
+    allBrandDates.length>0&&selectedBrandDates.size===allBrandDates.length);
+}
+function updateBrandDateTrigger(){
+  const txt=document.getElementById('brand-date-trigger-text');
+  if(selectedBrandDates.size===0) txt.textContent='All Dates';
+  else if(selectedBrandDates.size===allBrandDates.length) txt.textContent=`All Dates (${allBrandDates.length})`;
+  else txt.textContent=`${selectedBrandDates.size} date${selectedBrandDates.size!==1?'s':''} selected`;
+}
+function updateBrandDateTags(){
+  const c=document.getElementById('brand-date-tags');
+  if(selectedBrandDates.size===0||selectedBrandDates.size===allBrandDates.length){c.innerHTML='';return;}
+  c.innerHTML=[...selectedBrandDates].sort().map(d=>{
+    const[y,mo,day]=d.split('-');
+    return `<span class="sel-tag">${day} ${MS[+mo]} ${y}<span class="sel-tag-x" onclick="removeBrandDate('${d}')">×</span></span>`;
+  }).join('');
+}
+
+function renderBrand(){
+  const brand=document.getElementById('brand-sel').value;
+  const monthKey=document.getElementById('brand-month-sel').value;
+  const empty=document.getElementById('brand-empty');
+  const stats=document.getElementById('brand-stats');
+
+  if(!brand){stats.style.display='none';empty.style.display='block';return;}
+
+  // Filter data
+  let rows=allData.filter(r=>r.brand===brand);
+  if(monthKey){
+    const[y,mo]=monthKey.split('-');
+    rows=rows.filter(r=>r.date.getFullYear()==+y&&r.date.getMonth()==+mo);
+  }
+  if(selectedBrandDates.size>0&&selectedBrandDates.size<allBrandDates.length){
+    rows=rows.filter(r=>{
+      const dk=`${r.date.getFullYear()}-${String(r.date.getMonth()).padStart(2,'0')}-${String(r.date.getDate()).padStart(2,'0')}`;
+      return selectedBrandDates.has(dk);
+    });
+  }
+
+  // Aggregate by mediator
+  const agg={};
+  rows.forEach(r=>{
+    if(!agg[r.med])agg[r.med]={orders:0,amt:0};
+    agg[r.med].orders++;agg[r.med].amt+=r.amt;
+  });
+  const sorted=Object.entries(agg).sort((a,b)=>b[1].orders-a[1].orders);
+  const maxO=sorted[0]?.[1].orders||1;
+  const totO=rows.length,totA=rows.reduce((s,r)=>s+r.amt,0);
+
+  // KPIs
+  document.getElementById('br-orders').textContent=N(totO);
+  document.getElementById('br-amt').textContent=M(totA);
+  document.getElementById('br-aov').textContent=M(totO?totA/totO:0);
+
+  // Title
+  let titleParts=[brand];
+  if(monthKey){const[y,mo]=monthKey.split('-');titleParts.push(`${MF[+mo]} ${y}`);}
+  if(selectedBrandDates.size>0&&selectedBrandDates.size<allBrandDates.length) titleParts.push(`${selectedBrandDates.size} dates`);
+  document.getElementById('br-title').textContent=titleParts.join(' · ');
+
+  // Table
+  document.getElementById('brand-tbody').innerHTML=sorted.length?sorted.map(([name,d],i)=>{
+    const pct=Math.round(d.orders/maxO*100);
+    return `<tr>
+      <td class="rank">${i+1}</td>
+      <td><strong>${name}</strong></td>
+      <td class="right">${N(d.orders)}</td>
+      <td><div class="bc"><div class="bw"><div class="bb" style="width:${pct}%"></div></div><span style="font-size:9px;color:var(--ink3);min-width:26px">${pct}%</span></div></td>
+      <td class="right">${M(d.amt)}</td>
+      <td class="right">${M(d.orders?d.amt/d.orders:0)}</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink3)">No orders found for this selection</td></tr>`;
+
+  empty.style.display='none';
+  stats.style.display='block';
+}
+
+// Close brand date dropdown on outside click
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('brand-date-wrap');
+  if(wrap&&!wrap.contains(e.target)) closeBrandDateDD();
+});
+
+// ── TAB 4: SUMMARY ───────────────────────────────────────────────────────────
+function renderSummary(){
+  const D=allData;
+  const tot=D.length,totAmt=D.reduce((s,r)=>s+r.amt,0),totRef=D.reduce((s,r)=>s+r.refund,0);
+  const aov=tot?totAmt/tot:0,meds=new Set(D.map(r=>r.med));
+  st('k0',N(tot));st('k0s',`across ${meds.size} mediators`);
+  st('k1',M(totAmt));st('k1s',`avg ${M(aov)} / order`);
+  st('k2',M(aov));st('k3',meds.size);st('k3s','active mediators');st('k4',M(totRef));
+
+  const mm={};
+  D.forEach(r=>{
+    const k=`${r.date.getFullYear()}-${String(r.date.getMonth()).padStart(2,'0')}`;
+    if(!mm[k])mm[k]={orders:0,amt:0,meds:{}};
+    mm[k].orders++;mm[k].amt+=r.amt;mm[k].meds[r.med]=(mm[k].meds[r.med]||0)+1;
+  });
+  const mks=Object.keys(mm).sort();
+  const mls=mks.map(k=>`${MS[+k.split('-')[1]]} ${k.split('-')[0]}`);
+
+  const medmap={};
+  D.forEach(r=>{
+    if(!medmap[r.med])medmap[r.med]={orders:0,amt:0,refund:0,months:{}};
+    medmap[r.med].orders++;medmap[r.med].amt+=r.amt;medmap[r.med].refund+=r.refund;
+    const mk=`${r.date.getFullYear()}-${r.date.getMonth()}`;
+    medmap[r.med].months[mk]=(medmap[r.med].months[mk]||0)+1;
+  });
+  const ms=Object.entries(medmap).sort((a,b)=>b[1].orders-a[1].orders);
+  const maxO=ms[0]?.[1].orders||1;
+  const pal=['#c8a84b','#4a8b6f','#4a6a8b','#8b4a6a','#6a4a8b','#8b6a4a','#4a8b8b','#8b8b4a','#6a8b4a'];
+
+  mkBar('c0',mls,mks.map(k=>mm[k].orders),'Orders','#c8a84b');
+  mkBar('c1',mls,mks.map(k=>mm[k].amt),'Amount','#4a8b6f');
+  let cum=0;mkLine('c2',mls,mks.map(k=>{cum+=mm[k].orders;return cum;}));
+  mkDnut('c3',ms.slice(0,9).map(([k])=>k),ms.slice(0,9).map(([,v])=>v.orders),pal);
+
+  document.getElementById('sum-med-tbody').innerHTML=ms.map(([name,d],i)=>{
+    const bm=Object.entries(d.months).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    const[by,bmo]=bm.split('-');
+    const best=bmo!==undefined?`${MS[+bmo]} ${by}`:'—';
+    const pct=Math.round(d.orders/maxO*100);
+    return `<tr><td class="rank">${i+1}</td><td><strong>${name}</strong></td>
+      <td class="right">${N(d.orders)}</td>
+      <td><div class="bc"><div class="bw"><div class="bb" style="width:${pct}%"></div></div><span style="font-size:9px;color:var(--ink3);min-width:26px">${pct}%</span></div></td>
+      <td class="right">${M(d.amt)}</td><td class="right">${M(d.refund)}</td>
+      <td class="right">${M(d.orders?d.amt/d.orders:0)}</td><td><span class="badge">${best}</span></td></tr>`;
+  }).join('');
+
+  document.getElementById('sum-month-tbody').innerHTML=mks.map(k=>{
+    const d=mm[k];const[y,mo]=k.split('-');
+    const top=Object.entries(d.meds).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+    const pct=tot?Math.min(Math.round(d.orders/tot*500),100):0;
+    return `<tr><td><strong>${MF[+mo]} ${y}</strong></td>
+      <td class="right">${N(d.orders)}</td>
+      <td><div class="bc"><div class="bw"><div class="bb" style="width:${pct}%"></div></div></div></td>
+      <td class="right">${M(d.amt)}</td><td class="right">${M(d.orders?d.amt/d.orders:0)}</td>
+      <td><span class="badge g">${top}</span></td><td class="right">${Object.keys(d.meds).length}</td></tr>`;
+  }).join('');
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+const cO={responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Syne',size:9},color:'#5c5752'}},y:{grid:{color:'rgba(200,168,75,0.07)'},ticks:{font:{family:'DM Mono',size:9},color:'#5c5752'}}}};
+function kc(id){if(CH[id]){CH[id].destroy();delete CH[id];}}
+function mkBar(id,labels,data,lbl,color){kc(id);CH[id]=new Chart(document.getElementById(id).getContext('2d'),{type:'bar',data:{labels,datasets:[{label:lbl,data,backgroundColor:color+'bb',borderColor:color,borderWidth:1.5,borderRadius:4,borderSkipped:false}]},options:cO});}
+function mkLine(id,labels,data){kc(id);CH[id]=new Chart(document.getElementById(id).getContext('2d'),{type:'line',data:{labels,datasets:[{label:'Cumulative',data,borderColor:'#c8a84b',backgroundColor:'rgba(200,168,75,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#c8a84b',pointRadius:3,pointHoverRadius:5}]},options:cO});}
+function mkDnut(id,labels,data,pal){kc(id);CH[id]=new Chart(document.getElementById(id).getContext('2d'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:pal,borderWidth:2,borderColor:'#fdfaf5'}]},options:{responsive:true,cutout:'58%',plugins:{legend:{position:'bottom',labels:{font:{family:'Syne',size:9},color:'#2e2b28',padding:6,boxWidth:9,boxHeight:9}}}}});}
+
+function M(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
+function N(n){return n.toLocaleString('en-IN');}
+function st(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function setLoad(on){document.getElementById('loading-screen').style.display=on?'flex':'none';}
+function lp(pct,msg){document.getElementById('lbar').style.width=pct+'%';document.getElementById('lt').textContent=msg;}
+function setSt(type,msg){document.getElementById('sdot').className='sdot '+type;document.getElementById('stxt').textContent=msg;}
+
+init();
+</script>
+</body>
+</html>
